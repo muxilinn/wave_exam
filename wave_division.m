@@ -22,7 +22,7 @@ wave = flipud(wave);
 function wave_denoised = denoise_wave(wave, flag_median, medfilt1_size, ...
     flag_sgolay, sgolayfilt_size, ...
     flag_trend, mileage, elevation_smooth, ...
-    flag_highpass, fc)
+    flag_highpass, n, fc)
     % 去除异常值
     if flag_median == 1
         wave_denoised = wave;
@@ -46,12 +46,23 @@ function wave_denoised = denoise_wave(wave, flag_median, medfilt1_size, ...
     % 高通滤波
     if flag_highpass == 1
         fc = fc; % 截止频率（归一化），值越小，保留的波长越长
-        [b, a] = butter(4, fc, 'high');
+        [b, a] = butter(n, fc, 'high');
         wave_denoised = filtfilt(b, a, wave_denoised);
     end
 end
 
-wave_denoised = denoise_wave(wave, 1, 21, 1, 21, 1, dist, wave, 1, 0.01);
+% 步骤1：定义“趋势”为波长长于某个阈值（例如，长于你关心的最长波长3米）
+longest_wavelength_of_interest = 3; % 单位：米
+fc_cutoff = 1 / longest_wavelength_of_interest; % 物理截止频率：0.333 cycles/m
+
+% 步骤2：转换为归一化频率
+Fs = 1 / 0.001; % 空间采样频率
+Wn = fc_cutoff / (Fs/2); % 归一化截止频率
+
+% 步骤3：设计滤波器并应用（零相位）
+[n, Wn] = buttord(Wn, Wn*0.8, 3, 40); % 自动计算最小阶数，更专业
+
+wave_denoised = denoise_wave(wave, 1, 21, 1, 21, 0, dist, wave, 1, n, Wn);
 
 %% 计算
 
